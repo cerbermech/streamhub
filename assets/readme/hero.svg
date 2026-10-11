@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" role="img" aria-labelledby="title desc">
+  <title id="title">STREAMHUB — видеостена и трансляции</title>
+  <desc id="desc">Источники видео собираются в сетку и поступают в канал, который доступен зрителям.</desc>
+  <rect width="1200" height="390" rx="28" fill="#0b1117"/>
+  <path d="M60 322H1140" stroke="#263945" stroke-width="2"/>
+  <g transform="translate(60 54)">
+    <rect width="66" height="66" rx="17" fill="#12252e" stroke="#2b5662"/>
+    <path d="M47 18H30C20 18 17 23 17 28S21 37 30 37h7c6 0 8 2 8 6s-3 6-8 6H20" fill="none" stroke="#39d6e7" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="50" cy="18" r="3.5" fill="#e9fcff"/>
+  </g>
+  <text x="146" y="97" fill="#9ab2bf" font-size="22" font-family="Segoe UI,Arial,sans-serif" letter-spacing="3">VIDEO CONTROL / WINDOWS</text>
+  <text x="60" y="206" fill="#f0f8fa" font-size="78" font-weight="750" font-family="Segoe UI,Arial,sans-serif" letter-spacing="-3">STREAMHUB</text>
+  <text x="62" y="258" fill="#bbd1d9" font-size="27" font-family="Segoe UI,Arial,sans-serif">Видеостена, студия и сетевые трансляции</text>
+  <text x="60" y="355" fill="#61cde0" font-size="19" font-family="Segoe UI,Arial,sans-serif">ИСТОЧНИКИ</text>
+  <path d="M190 349h43" stroke="#4a7180" stroke-width="2"/>
+  <text x="248" y="355" fill="#61cde0" font-size="19" font-family="Segoe UI,Arial,sans-serif">РАСКЛАДКА</text>
+  <path d="M395 349h43" stroke="#4a7180" stroke-width="2"/>
+  <text x="453" y="355" fill="#61cde0" font-size="19" font-family="Segoe UI,Arial,sans-serif">ЭФИР</text>
+  <g transform="translate(790 70)" stroke="#315361" stroke-width="2">
+    <rect width="347" height="218" rx="18" fill="#101d25"/>
+    <rect x="16" y="16" width="153" height="89" rx="8" fill="#162b35"/>
+    <rect x="178" y="16" width="153" height="89" rx="8" fill="#142630"/>
+    <rect x="16" y="114" width="153" height="89" rx="8" fill="#13252e"/>
+    <rect x="178" y="114" width="153" height="89" rx="8" fill="#172d37"/>
+    <path d="M48 73l25-19 20 13 25-33 20 17" fill="none" stroke="#39d6e7" stroke-width="4"/>
+    <path d="M210 71l31-23 20 13 32-30" fill="none" stroke="#4fcda7" stroke-width="4"/>
+    <circle cx="136" cy="34" r="5" fill="#4fcda7" stroke="none"/>
+    <circle cx="299" cy="132" r="5" fill="#4fcda7" stroke="none"/>
+  </g>
+</svg>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="338" viewBox="0 0 1200 338" role="img" aria-labelledby="title desc">
+  <title id="title">Путь видеосигнала в STREAMHUB</title>
+  <desc id="desc">RTSP, HTTP и захват устройства входят в источники, попадают на видеостену или в студию канала, а затем доступны по RTSP и в браузере.</desc>
+  <rect width="1200" height="338" rx="24" fill="#0d171e"/>
+  <text x="52" y="55" fill="#a7bdc8" font-size="22" font-family="Segoe UI,Arial,sans-serif" letter-spacing="2">ПУТЬ СИГНАЛА</text>
+  <path d="M300 182h77M672 182h77M1022 182h95" stroke="#42bdd0" stroke-width="4"/>
+  <path d="m365 173 12 9-12 9m372-18 12 9-12 9m354-18 12 9-12 9" fill="none" stroke="#42bdd0" stroke-width="4"/>
+  <g font-family="Segoe UI,Arial,sans-serif">
+    <rect x="50" y="95" width="250" height="176" rx="16" fill="#132630" stroke="#355966" stroke-width="2"/>
+    <text x="72" y="143" fill="#e9f7f9" font-size="29" font-weight="700">Источники</text>
+    <text x="72" y="181" fill="#9fc2cd" font-size="22">RTSP · HTTP</text>
+    <text x="72" y="217" fill="#9fc2cd" font-size="22">камеры · экран</text>
+    <rect x="378" y="95" width="294" height="176" rx="16" fill="#132630" stroke="#355966" stroke-width="2"/>
+    <text x="402" y="143" fill="#e9f7f9" font-size="29" font-weight="700">STREAMHUB</text>
+    <text x="402" y="181" fill="#9fc2cd" font-size="22">мониторинг · сетка</text>
+    <text x="402" y="217" fill="#9fc2cd" font-size="22">студия · подписи</text>
+    <rect x="750" y="95" width="272" height="176" rx="16" fill="#16333b" stroke="#43bcd0" stroke-width="2"/>
+    <text x="775" y="143" fill="#e9f7f9" font-size="29" font-weight="700">Канал</text>
+    <text x="775" y="181" fill="#a8d5da" font-size="22">готовая раскладка</text>
+    <text x="775" y="217" fill="#a8d5da" font-size="22">и отдельные камеры</text>
+  </g>
+  <text x="1100" y="290" text-anchor="end" fill="#61cde0" font-size="21" font-family="Segoe UI,Arial,sans-serif">RTSP / HLS</text>
+</svg>
