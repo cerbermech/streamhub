@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Студия — STREAMHUB</title>
+    <script src="/hls.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #0d1418;
+        color: #dce7ed;
+        font: 14px system-ui;
+      }
+      header {
+        height: 58px;
+        padding: 15px 22px;
+        background: #141d22;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+      }
+      a {
+        color: #45d6e8;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: minmax(540px, 1fr) 360px;
+        gap: 18px;
+        padding: 18px;
+      }
+      .stage {
+        aspect-ratio: 16/9;
+        background: #05090b;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #39515d;
+      }
+      .layer {
+        position: absolute;
+        border: 2px solid #21c9df;
+        background: #17232a;
+        overflow: hidden;
+        min-width: 5%;
+        min-height: 5%;
+        cursor: move;
+      }
+      .layer video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #000;
+        pointer-events: none;
+      }
+      .layer span {
+        position: absolute;
+        left: 5px;
+        bottom: 5px;
+        text-shadow: 0 1px 3px #000;
+      }
+      .handle {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 16px;
+        height: 16px;
+        background: #21c9df;
+        cursor: nwse-resize;
+      }
+      .title,
+      .clock,
+      .logo {
+        position: absolute;
+        text-shadow: 0 1px 4px #000;
+        font-weight: 700;
+        pointer-events: none;
+      }
+      .title {
+        top: 2%;
+        left: 20%;
+        width: 60%;
+        text-align: center;
+        font-size: 22px;
+      }
+      .clock {
+        right: 2%;
+        top: 2%;
+        font-size: 20px;
+      }
+      .logo {
+        object-fit: contain;
+      }
+      .toolbar,
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      button,
+      input,
+      select {
+        background: #172630;
+        border: 1px solid #405965;
+        color: #e4eef2;
+        border-radius: 5px;
+        padding: 8px;
+      }
+      button.primary {
+        background: #08798a;
+      }
+      button.live {
+        background: #bd4b24;
+      }
+      .panel {
+        background: #141f25;
+        border: 1px solid #293c46;
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 8px 0;
+      }
+      label {
+        display: grid;
+        gap: 4px;
+      }
+      .layers {
+        max-height: 330px;
+        overflow: auto;
+      }
+      .layer-row {
+        border-top: 1px solid #30434d;
+        padding: 9px 0;
+      }
+      .players {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 14px;
+      }
+      .players video {
+        width: 100%;
+        background: #000;
+        aspect-ratio: 16/9;
+      }
+      .muted {
+        color: #9cb0ba;
+      }
+      .error {
+        color: #ff9e81;
+      }
+      @media (max-width: 950px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        .players {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="/studio.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/">← STREAMHUB</a><strong id="heading">Студия канала</strong
+      ><span id="status" class="muted"></span>
+    </header>
+    <main class="shell">
+      <section>
+        <div id="stage" class="stage">
+          <div id="title" class="title"></div>
+          <div id="clock" class="clock"></div>
+          <img id="logo" class="logo" hidden />
+        </div>
+        <div class="toolbar">
+          <button data-preset="1">1</button><button data-preset="4">2×2</button
+          ><button data-preset="pip">PiP</button><button id="add">+ Слой</button
+          ><button id="remove">Удалить слой</button>
+        </div>
+        <div class="players">
+          <label>Черновик<video id="preview" controls muted></video></label
+          ><label
+            >Сейчас в эфире<video id="program" controls muted></video
+          ></label>
+        </div>
+      </section>
+      <aside>
+        <div class="panel">
+          <strong>Оформление</strong
+          ><label>Заголовок<input id="titleInput" maxlength="160" /></label
+          ><label><input id="clockInput" type="checkbox" /> Часы сервера</label
+          ><label
+            >Логотип<select id="logoInput">
+              <option value="">Нет</option>
+            </select></label
+          ><label
+            >Загрузить PNG<input id="logoFile" type="file" accept="image/png"
+          /></label>
+        </div>
+        <div class="panel">
+          <strong>Выход</strong>
+          <div class="row">
+            <label
+              >Качество<select id="quality">
+                <option>360p</option>
+                <option selected>720p</option>
+                <option>1080p</option>
+              </select></label
+            ><label
+              >FPS<select id="fps">
+                <option>10</option>
+                <option>15</option>
+                <option selected>25</option>
+              </select></label
+            >
+          </div>
+          <label
+            >Битрейт, кбит/с<input
+              id="bitrate"
+              type="number"
+              min="200"
+              max="20000"
+          /></label>
+        </div>
+        <div class="panel">
+          <strong>Подпись выбранной камеры</strong>
+          <label
+            >Текст подписи<input
+              id="selectedCaption"
+              maxlength="80"
+              placeholder="Например: Северный вход"
+          /></label>
+          <div class="caption-options selected-caption-options">
+            <select id="selectedCaptionPosition" aria-label="Положение подписи">
+              <option value="bottom-left">Снизу слева</option>
+              <option value="bottom-center">Снизу по центру</option>
+              <option value="bottom-right">Снизу справа</option>
+              <option value="top-left">Сверху слева</option>
+              <option value="top-center">Сверху по центру</option>
+              <option value="top-right">Сверху справа</option>
+            </select>
+            <select id="selectedCaptionSize" aria-label="Размер подписи">
+              <option value="small">Мелкая</option>
+              <option value="medium">Средняя</option>
+              <option value="large">Крупная</option>
+            </select>
+            <label class="check"><input id="selectedCaptionBackground" type="checkbox" /> Фон</label>
+          </div>
+          <p class="muted caption-hint">Выберите слой в макете или списке ниже. Подпись видна в макете сразу; видео обновляется кнопкой «Предпросмотр».</p>
+        </div>
+        <div class="panel">
+          <strong>Камеры и слои</strong>
+          <div id="layers" class="layers"></div>
+        </div>
+        <div class="actions">
+          <button id="save" class="primary">Сохранить черновик</button
+          ><button id="show">Предпросмотр</button
+          ><button id="take" class="live">В эфир</button
+          ><button id="reset">Сбросить</button>
+        </div>
+        <p class="muted">
+          «В эфир» применяет черновик и кратко переподключает зрителей.
+        </p>
+        <p id="message"></p>
+      </aside>
+    </main>
+    <script src="/studio.js"></script>
+  </body>
+</html>

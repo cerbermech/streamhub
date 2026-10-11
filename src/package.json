@@ -1,0 +1,15 @@
+{
+  "name": "videowall-desktop",
+  "version": "1.6.4",
+  "private": true,
+  "description": "STREAMHUB video monitoring, mixing and broadcast server",
+  "author": "STREAMHUB",
+  "main": "main.cjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "onvif": "^0.8.3",
+    "qrcode": "^1.5.4"
+  }
+}

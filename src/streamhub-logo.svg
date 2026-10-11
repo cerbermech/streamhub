@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="STREAMHUB">
+  <rect width="64" height="64" rx="16" fill="#0b151b"/>
+  <path d="M44.5 18H27.8C20.2 18 16 22.4 16 27.1S20.2 36 27.8 36h8.4c3.6 0 5.8 1.8 5.8 4.6S39.8 46 36.2 46H19.5" fill="none" stroke="#39d6e7" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="47" cy="18" r="3.5" fill="#e9fcff"/>
+</svg>

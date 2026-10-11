@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>STREAMHUB</title>
+    <style>
+      body {
+        margin: 0;
+        background: #0e151a;
+        color: #eaf3f7;
+        font: 16px system-ui;
+      }
+      header,
+      main {
+        padding: 18px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        background: #111c23;
+      }
+      button,
+      input {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 14px;
+        margin: 6px 0;
+        background: #1b2b35;
+        color: white;
+        border: 1px solid #385263;
+        border-radius: 9px;
+      }
+      .card {
+        display: block;
+        padding: 18px;
+        margin: 12px 0;
+        background: #17242c;
+        border: 1px solid #294452;
+        border-radius: 12px;
+        color: white;
+        text-decoration: none;
+      }
+      .live {
+        color: #54ddb4;
+      }
+      form {
+        max-width: 420px;
+        margin: auto;
+      }
+      small {
+        color: #a9bbc5;
+      }
+    </style>
+    <link rel="stylesheet" href="/mobile.css" />
+  </head>
+  <body>
+    <header>
+      <b>STREAMHUB</b><a href="/" style="color: #54dff5">Панель</a>
+    </header>
+    <main>
+      <form id="login" hidden>
+        <h2>Вход</h2>
+        <input id="user" placeholder="Логин" autocomplete="username" /><input
+          id="password"
+          type="password"
+          placeholder="Пароль"
+          autocomplete="current-password"
+        /><button>Войти</button>
+        <p id="error"></p>
+      </form>
+      <section id="channels"></section>
+    </main>
+    <script src="/mobile.js"></script>
+  </body>
+</html>

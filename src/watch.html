@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Просмотр трансляции — STREAMHUB</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #101519;
+        color: #e5edf3;
+        font:
+          15px system-ui,
+          sans-serif;
+      }
+      header {
+        padding: 20px 28px;
+        border-bottom: 1px solid #2b3944;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      a {
+        color: #55ddea;
+        text-decoration: none;
+      }
+      main {
+        max-width: 1600px;
+        margin: auto;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 12px;
+      }
+      .status {
+        color: #a6bac8;
+        min-height: 24px;
+      }
+      video {
+        display: block;
+        width: 100%;
+        max-height: 76vh;
+        aspect-ratio: 16/9;
+        background: #070c10;
+        border: 1px solid #2c3e49;
+        border-radius: 8px;
+      }
+      button,
+      input {
+        font: inherit;
+        border: 1px solid #3a5361;
+        border-radius: 6px;
+        padding: 11px;
+        background: #1b2a34;
+        color: #e5edf3;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        background: #29434d;
+      }
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid #55ddea;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .primary {
+        border-color: #4dd6e5;
+        color: #55ddea;
+        background: #183a43;
+      }
+      #login {
+        max-width: 440px;
+        margin: 40px auto;
+        padding: 28px;
+        background: #1a252e;
+        border: 1px solid #344b59;
+        border-radius: 12px;
+      }
+      #login h2 {
+        margin-top: 0;
+      }
+      label {
+        display: block;
+        margin: 18px 0 8px;
+      }
+      input {
+        width: 100%;
+      }
+      .password-row {
+        display: flex;
+        gap: 8px;
+      }
+      .password-row input {
+        min-width: 0;
+      }
+      .help {
+        font-size: 13px;
+        color: #9db0bd;
+        line-height: 1.6;
+      }
+      #error {
+        color: #ffb5a6;
+        min-height: 20px;
+      }
+      #login .primary {
+        width: 100%;
+        margin-top: 12px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @media (max-width: 600px) {
+        header {
+          padding: 16px;
+        }
+        main {
+          padding: 16px;
+        }
+        h1 {
+          font-size: 22px;
+        }
+        #login {
+          margin: 20px auto;
+          padding: 20px;
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="/watch.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/">← STREAMHUB</a><button id="logout" hidden>Выйти</button>
+    </header>
+    <main>
+      <h1 id="name">Трансляция</h1>
+      <p id="status" class="status" role="status">Подключение к серверу…</p>
+      <form id="login" hidden>
+        <h2>Вход</h2>
+        <p class="help">Введите учётную запись, которую выдал администратор.</p>
+        <label for="user">Логин</label
+        ><input id="user" required autocomplete="username" /><label
+          for="password"
+          >Пароль</label
+        >
+        <div class="password-row">
+          <input
+            id="password"
+            type="password"
+            required
+            autocomplete="current-password"
+          /><button type="button" id="show" aria-pressed="false">
+            Показать
+          </button>
+        </div>
+        <p id="error" role="alert"></p>
+        <button class="primary" id="submit">Смотреть трансляцию</button>
+      </form>
+      <video id="video" controls autoplay muted playsinline hidden></video>
+      <p id="hint" class="help" hidden>
+        Для звука включите громкость в плеере. При обрыве связи просмотр
+        восстановится автоматически.
+      </p>
+    </main>
+    <script src="/hls.min.js"></script>
+    <script src="/watch.js"></script>
+  </body>
+</html>
