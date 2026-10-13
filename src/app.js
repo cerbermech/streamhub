@@ -158,6 +158,18 @@ async function refresh() {
     model.sources.length +
     " источников";
   sourceList();
+  document.querySelectorAll('.source-status[data-source-id]').forEach(el=>{
+    const item=model.sources.find(s=>s.id===el.dataset.sourceId);
+    if(item){el.dataset.sourceState=item.status;el.textContent=statusName[item.status] || item.status;}
+  });
+  document.querySelectorAll(".tile-state").forEach(el => {
+    const tile=el.closest('[data-tile]'), item=model.sources.find(s=>s.id===slots[+tile.dataset.tile]);
+    el.dataset.state=item?.status || 'empty'; el.setAttribute('aria-label',statusName[item?.status] || 'Пустая ячейка');
+  });
+  document.querySelectorAll('.channel-state').forEach(el=>{
+    const item=model.channels.find(c=>c.id===el.closest('[data-channel-order]')?.dataset.channelOrder);
+    if(item)el.dataset.channelState=item.status;
+  });
   document.querySelectorAll("[data-viewers]").forEach((el) => {
     const channel = model.channels.find((item) => item.id === el.dataset.viewers);
     if (channel) el.textContent = channel.viewers == null ? "—" : channel.viewers;
@@ -667,7 +679,7 @@ function render() {
                 s.id +
                 '"></video><div class="empty play-status" style="position:absolute;inset:0;pointer-events:none">Подключение к потоку…</div>'
               : '<div class="empty"><b>▧</b><span>Выберите источник слева</span></div>') +
-            '<div class="tile-head"><span>' +
+            '<div class="tile-head"><span class="tile-state" data-state="'+esc(s?.status || 'empty')+'" aria-label="'+esc(statusName[s?.status] || 'Пустая ячейка')+'"></span><span title="'+esc(s?.name || 'Пустая ячейка')+'">' +
             esc(s?.name || "Ячейка " + (i + 1)) +
             '</span></div>' +
             (expanded === i && s?.onvif && admin
@@ -809,8 +821,10 @@ function render() {
       panel.querySelector("[data-inline-home]").onclick = () => sendPtz({ action: "home" });
     });
     document.querySelectorAll("[data-tile]").forEach((el) => {
-      el.onclick = () => {
+      el.onclick = (event) => {
+        if(event.target.closest("button,select,input"))return;
         selected = +el.dataset.tile;
+        if(size>=25 && expanded===null){expanded=selected;ptzOpen=false;render();return;}
         document
           .querySelectorAll(".tile")
           .forEach((t) => t.classList.toggle("selected", t === el));
@@ -822,7 +836,7 @@ function render() {
       };
       el.ondblclick = expand;
       el.ondragstart = (e) => {
-        if (e.target.closest("button,select,input")) {
+        if (e.target.closest("button,select,input,summary,details")) {
           e.preventDefault();
           return;
         }
@@ -894,7 +908,7 @@ function render() {
         ? '<button class="primary" id="newChannel">＋ Создать канал</button>'
         : "");
     $("#main").innerHTML =
-      '<div class="content"><div class="channel-list data-list">' +
+      '<div class="content list-content"><div class="channel-list data-list">' +
       model.channels
         .map(
           (c) =>
@@ -916,19 +930,20 @@ function render() {
                 c.id +
                 '">' +
                 (c.desired ? "Остановить" : "Запустить") +
-                '</button><button data-edit="' +
+                '</button>'
+              : "") +
+            '<button data-watch="' + c.id + '">Смотреть</button><details class="action-menu"><summary aria-label="Дополнительные действия канала">Ещё</summary><div class="action-menu__items">' +
+            (owner ? '<button data-edit="' +
                 c.id +
                 '">Открыть студию</button>'
               : "") +
             '<button data-links="' +
             c.id +
-            '">Ссылки</button><button data-watch="' +
-            c.id +
-            '">Смотреть</button>' +
+            '">Ссылки</button>' +
             (admin
               ? '<button class="danger-quiet" data-delete="' + c.id + '">Удалить</button>'
               : "") +
-            '</div><p class="inline-message channel-row__error" data-error="' +
+            '</div></details></div><p class="inline-message channel-row__error" data-error="' +
             c.id +
             '" style="overflow-wrap:anywhere">' +
             esc(c.reason || (c.status==="error"?"Канал переподключается":"")) +
@@ -1085,7 +1100,7 @@ function render() {
             (!f.active
               ? '<button data-archive-delete="' +
                 encodeURIComponent(f.id) +
-                '">Удалить</button>'
+                '">Удалить</button></div></details>'
               : "") +
             "</div></div>",
         )
@@ -1536,15 +1551,15 @@ function render() {
         const free = model.sources.filter(source => !assigned.has(source.id));
         $("#monitorFree").innerHTML = model.role === "viewer" ? "" : '<section class="monitor-free"><strong>Свободные источники · ' + free.length + '</strong><p>Не используются в раскладках каналов</p>' +
           (free.length ? '<div>' + free.map(source => '<span title="' + esc(source.description || source.name) + '">' + esc(source.name) + '</span>').join('') + '</div>' : '<p>Все источники используются</p>') + '</section>';
-        const online = data.sources.filter((source) => source.ok).length;
-        $("#monitorSummary").textContent = online + " из " + data.sources.length + " доступны" + (data.refreshing ? " · идёт проверка" : "");
+        const online = data.sources.filter((source) => source.status === "online").length;
+        $("#monitorSummary").textContent = online + " из " + data.sources.length + " передают видео" + (data.refreshing ? " · идёт проверка" : "");
         $("#monitorGrid").innerHTML = data.sources.length ?
           '<div class="monitor-table-head" aria-hidden="true"><span>Камера</span><span>Адрес</span><span>Ping</span><span>Поток</span><span>Проверено</span><span></span></div>' +
           data.sources.map((source) => {
-            const pingText = source.ping === null ? '—' : source.ping ? 'Есть' : 'Нет';
-            const streamText = source.tcp === null ? '—' : source.tcp ? 'Доступен' : 'Недоступен';
-            return '<article class="monitor-card '+(source.ok?'is-online':'is-offline')+'" data-monitor-id="'+esc(source.id)+'" tabindex="0" role="button" aria-label="История: '+esc(source.name)+'" title="Открыть историю: '+esc(source.name)+'">'+
-              '<div class="monitor-card__head"><span class="monitor-light" aria-hidden="true"></span><div><h3>'+esc(source.name)+'</h3><p>'+(source.ok?'В работе':'Нет связи')+'</p></div></div>'+
+            const pingText = 'Ping: ' + (source.ping == null ? '—' : source.ping ? 'есть' : 'нет');
+            const streamText = 'Порт: ' + (source.tcp == null ? '—' : source.tcp ? 'открыт' : 'закрыт');
+            return '<article class="monitor-card '+(source.status === 'online' ? 'is-online' : source.status === 'reachable' ? 'is-reachable' : source.status === 'checking' || source.status === 'connecting' || source.status === 'disabled' ? 'is-checking' : 'is-offline')+'" data-monitor-id="'+esc(source.id)+'" tabindex="0" role="button" aria-label="История: '+esc(source.name)+'" title="Открыть историю: '+esc(source.name)+'">'+
+              '<div class="monitor-card__head"><span class="monitor-light" aria-hidden="true"></span><div><h3>'+esc(source.name)+'</h3><p>'+(StreamhubMonitoring.labels[source.status] || 'Нет видео')+'</p></div></div>'+
               '<span class="monitor-cell monitor-address is-muted" title="'+esc(source.host || '')+'">'+esc(source.host || (source.kind === 'capture' ? 'Локальный захват' : '—'))+'</span>'+
               '<span class="monitor-cell monitor-ping '+(source.ping === false?'is-bad':source.ping?'is-good':'is-muted')+'">'+pingText+'</span>'+
               '<span class="monitor-cell monitor-stream '+(source.tcp === false?'is-bad':source.tcp?'is-good':'is-muted')+'">'+streamText+'</span>'+
@@ -1557,18 +1572,18 @@ function render() {
             try {
               const source = data.sources.find(item => item.id === card.dataset.monitorId);
               const { points } = await api("/monitoring/" + encodeURIComponent(source.id) + "/history");
-              const start = Date.now() - 86400000;
-              const bars = points.map(point => {
-                const x = Math.max(0, Math.min(718, Math.round((point.checkedAt - start) / 86400000 * 720)));
-                const color = point.status === "online" ? "#3fd39a" : point.status === "reachable" ? "#e3b35f" : "#ef6464";
-                return '<rect x="' + x + '" y="4" width="3" height="54" fill="' + color + '"><title>' + esc(new Date(point.checkedAt).toLocaleString() + " · " + point.status + " · " + (point.reason || "")) + '</title></rect>';
-              }).join("");
-              const breaks = points.filter((point, i) => point.status !== "online" && (i === 0 || points[i-1].status === "online"));
+              const {start, bins, outages: breaks} = StreamhubMonitoring.timeline(points);
+              const bars = bins.map((bin,i) => {
+                const label = new Date(bin.start).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+                return '<rect x="'+(i*2.5)+'" y="4" width="2.5" height="42" fill="'+(StreamhubMonitoring.colors[bin.status] || '#34434d')+'"><title>'+esc(label+' · '+(bin.status ? bin.reason || StreamhubMonitoring.labels[bin.status] || 'Нет видео' : 'Нет проверок'))+'</title></rect>';
+              }).join('') + Array.from({length:5}, (_,i) => '<text x="'+(i*180)+'" y="66" text-anchor="'+(i===0?'start':i===4?'end':'middle')+'" fill="#afc2ce" font-size="16">'+esc(new Date(start+i*21600000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))+'</text>').join('');
               modal("История: " + esc(source.name),
-                '<p>Последние 24 часа · зелёный — поток идёт, жёлтый — адрес доступен без видео, красный — связи нет. Проверка каждые 15 секунд.</p>' +
-                '<svg class="monitor-history" viewBox="0 0 720 62" role="img" aria-label="График состояния за сутки"><rect width="720" height="62" fill="#18232a"/>' + bars + '</svg>' +
-                '<p>Обрывы: ' + breaks.length + '</p><div class="monitor-outages">' + (breaks.length ? breaks.slice(-30).reverse().map(point => '<p>' + esc(new Date(point.checkedAt).toLocaleString() + ' · ' + (point.reason || point.status)) + '</p>').join("") : '<p>Обрывов в истории нет</p>') + '</div>',
+                '<p>Последние 24 часа · зелёный — поток идёт, жёлтый — адрес доступен без видео, красный — связи нет. Проверка каждые 15 секунд; интервалы по 5 минут показывают худшее состояние. Серый — нет проверок.</p>' +
+                '<svg class="monitor-history" viewBox="0 0 720 76" role="img" aria-label="График состояния за сутки"><rect width="720" height="46" fill="#18232a"/>' + bars + '</svg>' +
+                '<p>Периоды без видео: ' + breaks.length + '</p><div class="monitor-outages">' + (breaks.length ? breaks.slice(-30).reverse().map(point => '<p>' + esc(new Date(point.start).toLocaleString() + ' → ' + (point.end ? new Date(point.end).toLocaleTimeString() + (point.unknownEnd ? ' · далее нет проверок' : '') : 'восстановление не зафиксировано') + ' · ' + point.reason) + '</p>').join("") : '<p>Обрывов в истории нет</p>') + '</div>',
                 () => {}, "Закрыть");
+              $("#dialog").classList.add("monitor-history-dialog");
+              $("#cancel").hidden=true;
             } catch (error) { toast(error.message); }
           };
           card.onclick = open;
@@ -1737,23 +1752,23 @@ function render() {
       (visibleSources.length ? visibleSources
         .map(
           (s) =>
-            '<div class="row sortable-row" draggable="true" data-source-order="'+s.id+'"><span class="drag-handle" title="Перетащить">⋮⋮</span><div><strong>' +
+            '<div class="row source-row sortable-row" draggable="true" data-source-order="'+s.id+'"><span class="drag-handle" title="Перетащить">⋮⋮</span><div><strong>' +
             esc(s.name) +
-            '</strong><p class="help">' +
-            esc(statusName[s.status]) +
+            '</strong><p class="help"><span class="source-status" data-source-id="'+esc(s.id)+'" data-source-state="'+esc(s.status)+'">' +
+            esc(statusName[s.status]) + '</span>' +
             " · " +
             esc(s.quality) + (s.capture ? " · "+(s.capture.kind==="screen"?"Захват экрана":s.capture.kind==="window"?"Захват окна":"Видеоустройство") : " · "+String(s.transport||"tcp").toUpperCase()) +
             '</p>'+(s.description?'<p class="source-description">'+esc(s.description)+'</p>':'')+'<p class="help">' +
-            esc(s.enabled===0?"Источник выключен":s.reason || s.error) +
+            esc(s.enabled===0?"Источник выключен":s.reason || (s.error?"Ошибка подключения · подробности ниже":"")) +
             '</p>'+(s.enabled!==0&&s.error?'<details class="source-technical-error"><summary>Техническая причина</summary><pre>'+esc(s.error)+'</pre></details>':'')+'</div><div class="tools"><button data-open-source="' +
             s.id +
             '">Просмотр</button>' +
             (admin
-              ? '<button data-toggle-source="'+s.id+'" data-enabled="'+(s.enabled!==0)+'">'+(s.enabled===0?"Включить":"Выключить")+'</button>'+(s.capture?"":'<button data-onvif-source="' + s.id + '">' + (s.onvif ? "PTZ и управление" : "Подключить ONVIF") + '</button>')+'<button data-edit-source="' +
+              ? '<details class="action-menu"><summary aria-label="Дополнительные действия источника">Ещё</summary><div class="action-menu__items"><button data-toggle-source="'+s.id+'" data-enabled="'+(s.enabled!==0)+'">'+(s.enabled===0?"Включить":"Выключить")+'</button>'+(s.capture?"":'<button data-onvif-source="' + s.id + '">' + (s.onvif ? "PTZ и управление" : "Подключить ONVIF") + '</button>')+'<button data-edit-source="' +
                 s.id +
                 '">Изменить</button><button data-remove="' +
                 s.id +
-                '">Удалить</button>'
+                '">Удалить</button></div></details>'
               : "") +
             "</div></div>",
         )
@@ -1815,7 +1830,7 @@ function render() {
   } else {
     tb.innerHTML = '<div class="toolbar-title"><h2>Настройки</h2><span>Система, сеть и резервные копии</span></div><button id="logout">Выйти</button>';
     $("#main").innerHTML =
-      '<div class="content settings-layout"><div class="card system-card"><span class="eyebrow">Состояние системы</span><h2>STREAMHUB 1.6.4</h2><p>Режим: ' +
+      '<div class="content settings-layout"><div class="card system-card"><span class="eyebrow">Состояние системы</span><h2>STREAMHUB 1.6.5</h2><p>Режим: ' +
       (model.serviceMode ? "служба Windows" : "обычный запуск") +
       "<br>FFmpeg: " +
       (model.dependencies.ffmpeg ? "найден" : "не установлен") +
@@ -1964,7 +1979,7 @@ function render() {
 function enableOrdering(selector,dataKey,endpoint){
   let moving=null;
   document.querySelectorAll(selector).forEach((row)=>{
-    row.ondragstart=(e)=>{moving=row.dataset[dataKey];e.dataTransfer.effectAllowed="move";row.classList.add("is-dragging")};
+    row.ondragstart=(e)=>{if(e.target.closest("button,input,select,summary,details")){e.preventDefault();return;}moving=row.dataset[dataKey];e.dataTransfer.effectAllowed="move";row.classList.add("is-dragging")};
     row.ondragend=()=>{moving=null;row.classList.remove("is-dragging")};
     row.ondragover=(e)=>{if(moving&&moving!==row.dataset[dataKey]){e.preventDefault();row.classList.add("drag-over-row")}};
     row.ondragleave=()=>row.classList.remove("drag-over-row");
@@ -2267,3 +2282,12 @@ setInterval(() => {
   if (session && !document.hidden && view === "monitoring")
     $("#refreshMonitoring")?.click();
 }, 15000);
+
+// Native details keeps keyboard and touch behavior; only one action menu stays open.
+document.addEventListener('toggle', event => {
+  if (!event.target.matches?.('.action-menu[open]')) return;
+  document.querySelectorAll('.action-menu[open]').forEach(menu => { if(menu!==event.target)menu.open=false; });
+}, true);
+document.addEventListener('keydown',event => {
+  if(event.key==='Escape')document.querySelectorAll('.action-menu[open]').forEach(menu=>{menu.open=false;menu.querySelector('summary').focus();});
+});

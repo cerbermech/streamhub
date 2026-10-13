@@ -589,6 +589,7 @@ async function startServer(options = {}) {
   });
   const monitorOne = async (row) => {
     const current = source(row.id), capture = captureInfo(current.url), startedAt = Date.now();
+    if (current.enabled === 0) return {id:row.id,name:row.name,kind:capture ? "capture" : "network",ok:false,ping:null,tcp:null,status:"disabled",reason:"Источник выключен",checkedAt:Date.now()};
     if (capture) {
       const agent = captureStatuses.get(row.id), ok = agent?.status === "online";
       return {
@@ -798,7 +799,7 @@ async function startServer(options = {}) {
       if (pathname === "/api/health" && q.method === "GET")
         return json(r, 200, {
           ok: true,
-          version: "1.6.4",
+          version: "1.6.5",
           serviceMode: !!options.serviceMode,
         });
       if (pathname === "/api/monitoring" && q.method === "GET" && access) {
@@ -2019,6 +2020,7 @@ async function startServer(options = {}) {
         "/app.css": "app.css",
         "/streamhub-logo.svg": "streamhub-logo.svg",
         "/layouts.js": "layouts.js",
+        "/monitoring.js": "monitoring.js",
         "/hls.min.js": "vendor/hls.min.js",
         "/watch": "watch.html",
         "/watch.js": "watch.js",
