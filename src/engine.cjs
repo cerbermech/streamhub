@@ -159,7 +159,7 @@ class Engine {
       FRAME = W * H * 3;
     if (this.closing || !this.sources.has(s.id)) return;
     const input = conf.url.startsWith("rtsp:")
-      ? ["-rtsp_transport", conf.transport === "udp" ? "udp" : "tcp", "-timeout", "5000000"]
+      ? ["-rtsp_transport", conf.transport === "udp" ? "udp" : "tcp", "-timeout", "15000000"]
       : [
           "-rw_timeout",
           "5000000",
@@ -173,8 +173,8 @@ class Engine {
       "-nostdin",
       "-threads",
       "1",
-      "-fflags", "nobuffer",
-      "-flags", "low_delay",
+      // Keep packets collected during probing: they may contain the only
+      // keyframe until the next GOP. Forced low_delay also breaks reordering.
       ...input,
       "-i",
       conf.url,
@@ -193,11 +193,15 @@ class Engine {
       "rawvideo",
       "pipe:1",
     ];
+    let diagnostic = "", lastDecodedAt = 0;
     const p = launch(this.ffmpeg, args, (line) => {
-      s.error = line
+      diagnostic += line
         .replaceAll(conf.url, "[source]")
-        .replace(/(?:rtsp|https?):\/\/\S+/g, "[url]")
-        .slice(-500);
+        .replace(/(?:rtsp|https?):\/\/\S+/g, "[url]");
+      // Preserve the initial cause as well as the final FFmpeg summary.
+      if (diagnostic.length > 8192)
+        diagnostic = diagnostic.slice(0, 4096) + "\n…\n" + diagnostic.slice(-4093);
+      s.error = diagnostic;
     });
     s.process = p;
     s.startedAt = Date.now();
@@ -224,7 +228,7 @@ class Engine {
             buf.subarray(plane * 2 + quarter, plane * 2 + quarter * 2),
             buf.subarray(plane * 2 + quarter * 3),
           ]);
-          s.lastFrame = Date.now();
+          s.lastFrame = lastDecodedAt = Date.now();
           s.state = "online";
           s.retryAttempt = 0;
           s.error = "";
@@ -233,10 +237,18 @@ class Engine {
         }
       }
     });
-    const watch = setInterval(() => {
-      if (Date.now() - (s.lastFrame || started) > 12000) p.kill("SIGKILL");
-    }, 3000);
     const started = Date.now();
+    const watch = setInterval(() => {
+      // Old display frames belong to the previous connection. Give each new
+      // decoder its own startup window, then monitor only its received frames.
+      const limit = lastDecodedAt ? 15000 : 45000;
+      if (Date.now() - (lastDecodedAt || started) > limit) {
+        s.error = diagnostic || (lastDecodedAt
+          ? "Поток перестал передавать кадры: время ожидания истекло."
+          : "Не получен первый видеокадр: время ожидания истекло.");
+        p.kill("SIGKILL");
+      }
+    }, 3000);
     p.once("close", () => {
       clearInterval(watch);
       s.process = null;
