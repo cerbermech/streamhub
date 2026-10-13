@@ -8,6 +8,7 @@ const dimensions = (q) =>
 const { rectangles, canvasRects } = require("./layouts.js");
 const path = require("node:path");
 const { LiveClock, readProgress } = require("./live-clock.cjs");
+const { FrameHold } = require("./frame-hold.cjs");
 const silence = Buffer.alloc(3840);
 function launch(cmd, args, onLog) {
   const p = spawn(cmd, args, {
@@ -41,6 +42,7 @@ class Engine {
       "C:\\Windows\\Fonts\\arial.ttf",
       "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     ].find((file) => file && fs.existsSync(file));
+    this.frameHold = new FrameHold(ffmpeg, () => this.fontOption(), log);
     this.sources = new Map();
     this.channels = new Map();
     this.token = randomBytes(24).toString("hex");
@@ -95,12 +97,9 @@ class Engine {
           selected=s.state==="online"&&!s.recoveryPending&&Date.now()-s.lastFrame<delay?s:reserve&&reserve.state==="online"&&!reserve.recoveryPending&&Date.now()-reserve.lastFrame<4000?reserve:null,
           fit=u.searchParams.get("fit") === "cover" ? "cover" : "frame";
         if (selected) lastVideoFrame=selected[fit];
-        // A brief drift spike is not a confirmed outage. For confirmed
-        // recovery, bridge the reconnect with a bounded last-frame hold.
-        else if (s.recoveryPending)
-          lastVideoFrame=s.lastFrame&&Date.now()<s.recoveryHoldUntil?s[fit]:s.blank;
-        else if (!lastVideoFrame && s.lastFrame) lastVideoFrame=s[fit];
-        blocked = !r.write(lastVideoFrame || s.blank);
+        else if (!lastVideoFrame && (s.hasFrame || s.lastFrame)) lastVideoFrame=s[fit];
+        const frame = selected ? lastVideoFrame : this.frameHold.apply(lastVideoFrame || s.blank, s.w, s.h);
+        blocked = !r.write(frame || s.blank);
       };
       r.on("drain", () => (blocked = false));
       send();
@@ -120,6 +119,7 @@ class Engine {
     if (!conf) throw Error("Источник не найден");
     const [w, h] = dimensions(conf.quality);
     const blank = this.placeholder(w,h,conf.name);
+    this.frameHold.prepare(w, h);
     s = {
       id,
       w,
@@ -224,7 +224,6 @@ class Engine {
       if (expired) {
         recovering = true;
         s.recoveryPending = true;
-        s.recoveryHoldUntil = Date.now() + 5000;
         s.state = "recovering";
         s.recoveries = (s.recoveries || 0) + 1;
         s.lastRecovery = `Накопилось отставание видео ${Math.round(s.lagMs / 1000)} с. Переподключение источника.`;
@@ -258,8 +257,8 @@ class Engine {
             buf.subarray(plane * 2 + quarter * 3),
           ]);
           s.lastFrame = lastDecodedAt = Date.now();
+          s.hasFrame = true;
           s.recoveryPending = false;
-          s.recoveryHoldUntil = 0;
           s.state = recovering ? "recovering" : "online";
           s.retryAttempt = 0;
           if (!recovering) s.error = "";
@@ -712,6 +711,7 @@ class Engine {
   }
   async close() {
     this.closing = true;
+    this.frameHold.close();
     await Promise.all([...this.channels.keys()].map((id) => this.stop(id)));
     this.rawServer.closeAllConnections();
     await new Promise((ok) => this.rawServer.close(ok));

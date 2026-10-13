@@ -35,5 +35,8 @@ test('real RTSP source -> draft HLS -> updated program with geometry and caption
   }finally{await browser.close();}
  }
 
- }finally{if(publisher){publisher.kill('SIGKILL');await new Promise(r=>publisher.exitCode!==null?r():publisher.once('close',r));}if(app)await app.close();fs.rmSync(dir,{recursive:true,force:true});}
+ const beforeOutage=await frame();publisher.kill('SIGKILL');await new Promise(r=>publisher.exitCode!==null||publisher.signalCode?r():publisher.once('close',r));await new Promise(r=>setTimeout(r,7000));
+ const duringOutage=await frame();assert.notDeepEqual(duringOutage,beforeOutage,'connection label must reach the encoded channel');
+ const center=(150*640+200)*3;assert(duringOutage[center+2]>150&&duringOutage[center]<60&&duringOutage[center+1]<60,'camera picture remains blue during the outage instead of no-signal placeholder');
+ }finally{if(publisher){publisher.kill('SIGKILL');await new Promise(r=>publisher.exitCode!==null||publisher.signalCode?r():publisher.once('close',r));}if(app)await app.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
