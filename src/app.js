@@ -34,6 +34,7 @@ const statusName = {
   idle: "Не используется",
   online: "Сигнал есть",
   connecting: "Подключение",
+  recovering: "Устраняется отставание",
   offline: "Нет сигнала",
   live: "В эфире",
   encoding: "Ожидание публикации",
@@ -1760,7 +1761,7 @@ function render() {
             esc(s.quality) + (s.capture ? " · "+(s.capture.kind==="screen"?"Захват экрана":s.capture.kind==="window"?"Захват окна":"Видеоустройство") : " · "+String(s.transport||"tcp").toUpperCase()) +
             '</p>'+(s.description?'<p class="source-description">'+esc(s.description)+'</p>':'')+'<p class="help">' +
             esc(s.enabled===0?"Источник выключен":s.reason || (s.error?"Ошибка подключения · подробности ниже":"")) +
-            '</p>'+(s.enabled!==0&&s.error?'<details class="source-technical-error"><summary>Техническая причина</summary><pre>'+esc(s.error)+'</pre></details>':'')+'</div><div class="tools"><button data-open-source="' +
+            '</p>'+((s.lagMs>1000||s.recoveries)?'<p class="help">Рост задержки: '+esc((s.lagMs/1000).toFixed(1))+' с · Восстановлений: '+esc(s.recoveries||0)+(s.lastRecovery?' · '+esc(s.lastRecovery):'')+'</p>':'')+(s.enabled!==0&&s.error?'<details class="source-technical-error"><summary>Техническая причина</summary><pre>'+esc(s.error)+'</pre></details>':'')+'</div><div class="tools"><button data-open-source="' +
             s.id +
             '">Просмотр</button>' +
             (admin

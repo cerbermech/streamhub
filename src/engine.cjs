@@ -7,10 +7,11 @@ const dimensions = (q) =>
   q === "1080p" ? [1920, 1080] : q === "360p" ? [640, 360] : [1280, 720];
 const { rectangles, canvasRects } = require("./layouts.js");
 const path = require("node:path");
+const { LiveClock, readProgress } = require("./live-clock.cjs");
 const silence = Buffer.alloc(3840);
 function launch(cmd, args, onLog) {
   const p = spawn(cmd, args, {
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", "pipe", "pipe", "pipe"],
     windowsHide: true,
   });
   p.stderr.on("data", (b) => onLog(String(b)));
@@ -91,9 +92,10 @@ class Engine {
         if (blocked || r.destroyed) return;
         const delay=Math.max(4,Math.min(60,Number(u.searchParams.get("delay"))||5))*1000,
           reserve=this.sources.get(u.searchParams.get("backup")),
-          selected=Date.now()-s.lastFrame<delay?s:reserve&&Date.now()-reserve.lastFrame<4000?reserve:null,
+          selected=s.state==="online"&&s.lagMs<=3000&&Date.now()-s.lastFrame<delay?s:reserve&&reserve.state==="online"&&reserve.lagMs<=3000&&Date.now()-reserve.lastFrame<4000?reserve:null,
           fit=u.searchParams.get("fit") === "cover" ? "cover" : "frame";
         if (selected) lastVideoFrame=selected[fit];
+        else if (s.lagMs>3000) lastVideoFrame=s.blank;
         else if (!lastVideoFrame && s.lastFrame) lastVideoFrame=s[fit];
         blocked = !r.write(lastVideoFrame || s.blank);
       };
@@ -136,6 +138,9 @@ class Engine {
       retryAttempt: 0,
       startedAt: 0,
       error: "",
+      lagMs: 0,
+      recoveries: 0,
+      lastRecovery: "",
     };
     this.sources.set(id, s);
     this.decode(s, conf);
@@ -184,11 +189,12 @@ class Engine {
       "-filter_complex_threads",
       "1",
       "-filter_complex",
-      `[0:v]fps=25,split[a][b];[a]scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2,setsar=1[a1];[b]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[b1];[a1][b1]vstack,format=yuv420p[out]`,
+      `[0:v]fps=10,scale=${W}:${H}:flags=fast_bilinear:force_original_aspect_ratio=decrease:force_divisible_by=2,split[a][b];[a]pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2,setsar=1[a1];[b]scale=${W}:${H}:flags=fast_bilinear:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[b1];[a1][b1]vstack,format=yuv420p[out]`,
       "-map",
       "[out]",
       "-threads",
       "1",
+      "-nostats", "-stats_period", "1", "-progress", "pipe:3",
       "-f",
       "rawvideo",
       "pipe:1",
@@ -205,6 +211,23 @@ class Engine {
     });
     s.process = p;
     s.startedAt = Date.now();
+    s.lagMs = 0;
+    const clock = new LiveClock();
+    let recovering = false;
+    p.stdio[3].on("data", readProgress((values) => {
+      if (this.closing || s.process !== p || recovering || !values.out_time_us || Number(values.frame) <= 0) return;
+      const expired = clock.update(Number(values.out_time_us), Date.now());
+      s.lagMs = Math.round(clock.lagMs);
+      if (expired) {
+        recovering = true;
+        s.state = "recovering";
+        s.recoveries = (s.recoveries || 0) + 1;
+        s.lastRecovery = `Накопилось отставание видео ${Math.round(s.lagMs / 1000)} с. Переподключение источника.`;
+        s.error = s.lastRecovery;
+        this.log?.("source-lag", s.id + ": " + s.lastRecovery);
+        p.kill("SIGKILL");
+      }
+    }));
     let buf = Buffer.alloc(FRAME),
       filled = 0;
     s.state = "connecting";
@@ -216,6 +239,7 @@ class Engine {
         offset += n;
         filled += n;
         if (filled === FRAME) {
+          if (recovering) { filled = 0; continue; }
           const plane = W * H,
             quarter = plane / 4;
           s.frame = Buffer.concat([
@@ -229,9 +253,9 @@ class Engine {
             buf.subarray(plane * 2 + quarter * 3),
           ]);
           s.lastFrame = lastDecodedAt = Date.now();
-          s.state = "online";
+          s.state = recovering ? "recovering" : "online";
           s.retryAttempt = 0;
-          s.error = "";
+          if (!recovering) s.error = "";
           buf = Buffer.allocUnsafe(FRAME);
           filled = 0;
         }
@@ -251,6 +275,7 @@ class Engine {
     }, 3000);
     p.once("close", () => {
       clearInterval(watch);
+      if (s.process !== p) return;
       s.process = null;
       s.state = "offline";
       if (this.sources.has(s.id) && !this.closing) this.scheduleDecode(s);
@@ -259,7 +284,7 @@ class Engine {
   scheduleDecode(s) {
     if (this.closing || !this.sources.has(s.id) || s.retry) return;
     s.retryAttempt = Math.min(8, (s.retryAttempt || 0) + 1);
-    const delay = Math.min(15000, 1500 * s.retryAttempt);
+    const delay = Math.min(15000, 1500 * s.retryAttempt) + Math.floor(Math.random() * 1000);
     s.state = "connecting";
     s.retry = setTimeout(() => {
       s.retry = null;
@@ -654,12 +679,15 @@ class Engine {
         audioReady: Date.now() - s.lastAudio < 3000,
         audioError: s.audioError,
         status:
-          Date.now() - s.lastFrame < 4000
+          s.state === "recovering" ? "recovering" : s.state === "online" && Date.now() - s.lastFrame < 4000
             ? "online"
             : s.state === "online"
               ? "offline"
               : s.state,
         error: s.error,
+        lagMs: s.lagMs || 0,
+        recoveries: s.recoveries || 0,
+        lastRecovery: s.lastRecovery || "",
       })),
       channels: [...this.channels.values()].map((c) => ({
         id: c.id,

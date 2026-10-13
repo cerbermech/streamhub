@@ -1022,6 +1022,9 @@ async function startServer(options = {}) {
                     audioError:
                       status.sources.find((a) => a.id === s.id)?.audioError ||
                       "",
+                    lagMs: status.sources.find((a) => a.id === s.id)?.lagMs || 0,
+                    recoveries: status.sources.find((a) => a.id === s.id)?.recoveries || 0,
+                    lastRecovery: status.sources.find((a) => a.id === s.id)?.lastRecovery || "",
                     status:
                       (agent?.status==="offline"?"offline":status.sources.find((a) => a.id === s.id)?.status) ||
                       "idle",
@@ -2106,21 +2109,8 @@ async function startServer(options = {}) {
     () => refreshMonitoring().catch((error) => log("monitoring", error.message)),
     15000,
   );
-  // Renew long-lived RTSP connections only while their decoders are active.
-  // Stagger renewals so many cameras do not reconnect simultaneously.
-  let renewingSources = false;
-  const sourceRenewTimer = setInterval(async () => {
-    if (closing || renewingSources) return;
-    renewingSources = true;
-    try {
-      const now = Date.now();
-      const candidate = [...engine.sources.values()].find((item) =>
-        item.process && item.state === "online" && now - item.startedAt > 60000 &&
-        source(item.id)?.enabled !== 0);
-      if (candidate) await engine.restartSource(candidate.id);
-    } catch (error) { log("source-renew", error.message); }
-    finally { renewingSources = false; }
-  }, 5000);
+  // Each decoder now monitors media-time drift; healthy streams do not need
+  // periodic disconnects, which made 50 cameras repeatedly reprobe together.
   const applySchedules = async () => {
     let dirty = false;
     for (const row of db.prepare("SELECT * FROM channels").all()) {
@@ -2164,7 +2154,6 @@ async function startServer(options = {}) {
       clearInterval(poll);
       clearInterval(leaseTimer);
       clearInterval(monitorTimer);
-      clearInterval(sourceRenewTimer);
       clearInterval(scheduleTimer);
       backupsManager.close();
       await recordings.close();
