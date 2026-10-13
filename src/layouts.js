@@ -8,7 +8,7 @@ function layout(size){
  return{cols,rows,cells:Array.from({length:size},(_,i)=>({col:i%cols,row:Math.floor(i/cols),colSpan:1,rowSpan:1}))};
 }
 function rectangles(size,width,height){const {cols,rows,cells}=layout(size),xedge=n=>Math.floor(n*width/cols/2)*2,yedge=n=>Math.floor(n*height/rows/2)*2;return cells.map(c=>({x:xedge(c.col),y:yedge(c.row),w:xedge(c.col+(c.colSpan||1))-xedge(c.col),h:yedge(c.row+(c.rowSpan||1))-yedge(c.row)}))}
-function canvasRects(config,width,height){if(Array.isArray(config.geometry)&&config.geometry.length===config.size)return config.geometry.map(g=>({x:Math.round(g.x*width/100),y:Math.round(g.y*height/100),w:Math.max(2,Math.round(g.w*width/100)),h:Math.max(2,Math.round(g.h*height/100))}));return rectangles(config.size,width,height)}
+function canvasRects(config,width,height){if(Array.isArray(config.geometry)&&config.geometry.length===config.size)return config.geometry.map(g=>{const even=n=>Math.round(n/2)*2,x=Math.max(0,Math.min(width-2,even(g.x*width/100))),y=Math.max(0,Math.min(height-2,even(g.y*height/100)));return{x,y,w:Math.max(2,Math.min(width-x,even(g.w*width/100))),h:Math.max(2,Math.min(height-y,even(g.h*height/100)))}});return rectangles(config.size,width,height)}
 const api={sizes,layout,rectangles,canvasRects,label:size=>size===6?'3 × 2':size===20?'5 × 4':size===8?'1+7':String(size)};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.WallLayouts=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

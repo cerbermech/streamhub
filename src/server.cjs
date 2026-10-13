@@ -9,6 +9,7 @@ const http = require("node:http"),
 const { Engine, terminate } = require("./engine.cjs");
 const { countViewers } = require("./viewer-count.cjs");
 const { validateScene } = require("./scene.cjs");
+const StudioModel = require("./studio-model.js");
 const { Diagnostics, explainError, run } = require("./diagnostics.cjs");
 const { OnvifManager, cleanError: cleanOnvifError } = require("./onvif.cjs");
 const QRCode = require("qrcode");
@@ -526,7 +527,14 @@ async function startServer(options = {}) {
   const startChannel = async (c) => {
     if (!deps.ffmpeg || !deps.mediamtx)
       throw Error("Установите FFmpeg и MediaMTX в папку bin");
-    await engine.start(c, `rtsp://127.0.0.1:${rtspPort}/${streamName(c.id)}`);
+    const normalized = StudioModel.normalize(structuredClone(c), c.slots.filter(Boolean).map(source).filter(Boolean));
+    if(!c.geometry)normalized.geometry=null;
+    normalized.captions=normalized.slots.map((_,i)=>StudioModel.caption(normalized,i,c.slots.filter(Boolean).map(source).filter(Boolean)));
+    await engine.start(normalized, `rtsp://127.0.0.1:${rtspPort}/${streamName(c.id)}`);
+  };
+  const studioBusy = new Set();
+  const stopStudio = async (id) => {
+    for(const key of [...engine.channels.keys()]) if(key === "studio-"+id || key.startsWith("studio-"+id+"-r")){previewLeases.delete(key);await engine.stop(key);}
   };
   const waitReady = async (id, seconds = 25) => {
     for (let i = 0; i < seconds * 4; i++) {
@@ -799,7 +807,7 @@ async function startServer(options = {}) {
       if (pathname === "/api/health" && q.method === "GET")
         return json(r, 200, {
           ok: true,
-          version: "1.6.5",
+          version: "1.6.6",
           serviceMode: !!options.serviceMode,
         });
       if (pathname === "/api/monitoring" && q.method === "GET" && access) {
@@ -1767,6 +1775,10 @@ async function startServer(options = {}) {
         if (!row) return json(r, 404, { error: "Канал не найден" });
         if (!canAccess(actor, id))
           return json(r, 403, { error: "Нет доступа к каналу" });
+        const mutation = q.method !== "GET";
+        if(mutation && studioBusy.has(id))return json(r,409,{error:"Студия занята применением изменений. Повторите после завершения."});
+        if(mutation)studioBusy.add(id);
+        try {
         const current = JSON.parse(row.config);
         let d = db.prepare("SELECT * FROM drafts WHERE channel_id=?").get(id);
         if (!d) {
@@ -1797,24 +1809,27 @@ async function startServer(options = {}) {
           db.prepare(
             "UPDATE drafts SET config=?,revision=revision+1 WHERE channel_id=?",
           ).run(JSON.stringify(config), id);
-          await engine.stop("studio-" + id);
+          await stopStudio(id);
           return json(r, 200, { revision: d.revision + 1 });
         }
         if (action === "draft" && q.method === "DELETE") {
           db.prepare(
             "UPDATE drafts SET config=?,revision=revision+1,base_config=? WHERE channel_id=?",
           ).run(row.config, row.config, id);
-          await engine.stop("studio-" + id);
+          await stopStudio(id);
           return json(r, 200, { revision: d.revision + 1 });
         }
         if (action === "preview-draft" && q.method === "POST") {
-          const config = { ...JSON.parse(d.config), id: "studio-" + id,
+          const config = { ...JSON.parse(d.config), id: "studio-" + id + "-r" + d.revision,
             quality: "360p", fps: 10, bitrate: 600, encoder: "libx264" };
-          await engine.stop(config.id);
+          const b = await body(q);
+          if(b.revision!==undefined && b.revision!==d.revision)return json(r,409,{error:"Черновик уже изменён"});
+          await stopStudio(id);
           await startChannel(config);
-          previewLeases.set(config.id, Date.now() + 45000);
+          previewLeases.set(config.id, Date.now() + 90000);
+          try { await waitReady(config.id); } catch(e) { previewLeases.delete(config.id);await engine.stop(config.id);throw e; }
           return json(r, 200, {
-            hls: `/live/${streamName(config.id)}/index.m3u8`,
+            hls: `/live/${streamName(config.id)}/index.m3u8`, revision:d.revision,
           });
         }
         if (action === "take" && q.method === "POST") {
@@ -1828,10 +1843,12 @@ async function startServer(options = {}) {
           const next = { ...JSON.parse(d.config), id, slug: current.slug },
             probe = { ...next, id: "studio-" + id };
           await engine.stop(probe.id);
+          let liveStopped=false;
           try {
             await startChannel(probe);
             await waitReady(probe.id);
             await engine.stop(id);
+            liveStopped=true;
             await startChannel(next);
             await waitReady(id);
             db.prepare("UPDATE channels SET config=?,desired=1 WHERE id=?").run(
@@ -1842,10 +1859,10 @@ async function startServer(options = {}) {
               "UPDATE drafts SET config=?,revision=revision+1,base_config=? WHERE channel_id=?",
             ).run(JSON.stringify(next), JSON.stringify(next), id);
             audit(q, actor, "channel.take", id, { revision: d.revision + 1 });
-            return json(r, 200, { ok: true, revision: d.revision + 1 });
+            return json(r, 200, { ok: true, revision: d.revision + 1, hls:`/live/${current.slug}/index.m3u8` });
           } catch (e) {
-            await engine.stop(id);
-            if (row.desired) {
+            if(liveStopped)await engine.stop(id);
+            if (liveStopped && row.desired) {
               await startChannel(current);
               await waitReady(id).catch(() => {});
             }
@@ -1854,6 +1871,7 @@ async function startServer(options = {}) {
             await engine.stop(probe.id);
           }
         }
+        } finally { if(mutation)studioBusy.delete(id); }
       }
       const match = pathname.match(
         /^\/api\/channels\/([a-zA-Z0-9_-]+)(?:\/(start|stop))?$/,
@@ -1965,7 +1983,7 @@ async function startServer(options = {}) {
           return json(r, 403, {
             error: "Черновик доступен только администратору",
           });
-        const studioPreview = parts[2].match(/^channel-(studio-[a-f0-9-]{36})$/);
+        const studioPreview = parts[2].match(/^channel-(studio-[a-f0-9-]{36}(?:-r\d+)?)$/);
         if (studioPreview && previewLeases.has(studioPreview[1]))
           previewLeases.set(studioPreview[1], Date.now() + 45000);
         const alias = db
@@ -2029,6 +2047,7 @@ async function startServer(options = {}) {
         "/mobile.js": "mobile.js",
         "/mobile.css": "mobile.css",
         "/studio.js": "studio.js",
+        "/studio-model.js": "studio-model.js",
         "/studio.css": "studio.css",
       };
       if (/^\/watch\/[a-z0-9-]{1,48}$/.test(pathname))
@@ -2107,6 +2126,7 @@ async function startServer(options = {}) {
     for (const row of db.prepare("SELECT * FROM channels").all()) {
       const c = JSON.parse(row.config),
         override = scheduleOverrides[c.id];
+      if(studioBusy.has(c.id))continue;
       if (override && override.until <= Date.now()) {
         delete scheduleOverrides[c.id];
         dirty = true;

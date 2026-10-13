@@ -1,118 +1,13 @@
-<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>Студия — STREAMHUB</title>
-    <script src="/hls.min.js"></script>
-
-    <link rel="stylesheet" href="/studio.css" />
-  </head>
-  <body>
-    <header>
-      <a href="/">← STREAMHUB</a><strong id="heading">Студия канала</strong
-      ><span id="status" class="muted"></span>
-    </header>
-    <main class="shell">
-      <section>
-        <div class="players">
-          <label>Живой предпросмотр черновика<video id="preview" controls muted></video></label
-          ><label
-            >Сейчас в эфире<video id="program" controls muted></video
-          ></label>
-        </div>
-        <p class="workspace-hint">Схема слоёв — перетаскивайте и меняйте размер. Живое видео показано выше.</p>
-        <div id="stage" class="stage">
-          <div id="title" class="title"></div>
-          <div id="clock" class="clock"></div>
-          <img id="logo" class="logo" hidden />
-        </div>
-        <div class="toolbar">
-          <button data-preset="1">1</button><button data-preset="4">2×2</button
-          ><button data-preset="pip">PiP</button><button id="add">+ Слой</button
-          ><button id="remove">Удалить слой</button>
-        </div>
-      </section>
-      <aside>
-        <div class="panel">
-          <strong>Оформление</strong
-          ><label>Заголовок<input id="titleInput" maxlength="160" /></label
-          ><label><input id="clockInput" type="checkbox" /> Часы сервера</label
-          ><label
-            >Логотип<select id="logoInput">
-              <option value="">Нет</option>
-            </select></label
-          ><label
-            >Загрузить PNG<input id="logoFile" type="file" accept="image/png"
-          /></label>
-        </div>
-        <div class="panel">
-          <strong>Выход</strong>
-          <div class="row">
-            <label
-              >Качество<select id="quality">
-                <option>360p</option>
-                <option selected>720p</option>
-                <option>1080p</option>
-              </select></label
-            ><label
-              >FPS<select id="fps">
-                <option>10</option>
-                <option>15</option>
-                <option selected>25</option>
-              </select></label
-            >
-          </div>
-          <label
-            >Битрейт, кбит/с<input
-              id="bitrate"
-              type="number"
-              min="200"
-              max="20000"
-          /></label>
-        </div>
-        <div class="panel">
-          <strong>Подпись выбранной камеры</strong>
-          <label
-            >Текст подписи<input
-              id="selectedCaption"
-              maxlength="80"
-              placeholder="Например: Северный вход"
-          /></label>
-          <div class="caption-options selected-caption-options">
-            <select id="selectedCaptionPosition" aria-label="Положение подписи">
-              <option value="bottom-left">Снизу слева</option>
-              <option value="bottom-center">Снизу по центру</option>
-              <option value="bottom-right">Снизу справа</option>
-              <option value="top-left">Сверху слева</option>
-              <option value="top-center">Сверху по центру</option>
-              <option value="top-right">Сверху справа</option>
-            </select>
-            <select id="selectedCaptionSize" aria-label="Размер подписи">
-              <option value="small">Мелкая</option>
-              <option value="medium">Средняя</option>
-              <option value="large">Крупная</option>
-            </select>
-            <label class="check"><input id="selectedCaptionBackground" type="checkbox" /> Фон</label>
-          </div>
-          <p class="muted caption-hint">Выберите слой в макете или списке ниже. Подпись видна в макете сразу; видео обновляется кнопкой «Предпросмотр».</p>
-        </div>
-        <div class="panel">
-          <strong>Камеры и слои</strong>
-          <div id="layers" class="layers"></div>
-        </div>
-        <div class="actions">
-          <button id="save" class="primary">Сохранить черновик</button
-          ><button id="show">Предпросмотр</button
-          ><button id="take" class="live">В эфир</button
-          ><button id="reset">Сбросить</button>
-        </div>
-        <p class="muted">
-          «В эфир» применяет черновик и кратко переподключает зрителей.
-        </p>
-        <p id="message"></p>
-      </aside>
-    </main>
-    <script src="/studio.js"></script>
-  </body>
-</html>
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Студия — STREAMHUB</title><link rel="stylesheet" href="/studio.css"><script src="/hls.min.js"></script></head><body>
+<nav class="navigation"><a class="brand" href="/"><img src="/streamhub-logo.svg" alt="">STREAM<span>HUB</span></a><a href="/">◫ <span>Просмотр</span></a><a href="/?view=channels">▤ <span>Каналы</span></a><a href="/?view=sources">▧ <span>Источники</span></a><a href="/?view=monitoring">◉ <span>Мониторинг</span></a><a class="active" href="#">▣ <span>Студия</span></a><a href="/?view=archive">▥ <span>Архив</span></a><a href="/?view=settings">⚙ <span>Настройки</span></a></nav>
+<div class="workspace"><header><h1 id="heading">Студия канала</h1><span id="status" role="status">Подключение…</span></header><main class="shell"><section class="canvas-column">
+<div class="players"><section class="video-panel preview-panel"><div class="panel-heading"><h2>ПРЕДПРОСМОТР</h2><span id="previewState">Подключение…</span></div><div class="video-frame"><video id="preview" autoplay muted playsinline controls></video><p id="previewOverlay" class="video-overlay">Запускаем черновик…</p></div><button id="retryPreview" class="retry" hidden>Повторить подключение</button></section>
+<section class="video-panel"><div class="panel-heading"><h2>ЭФИР</h2><span id="programState" class="live-badge">Подключение…</span></div><div class="video-frame"><video id="program" autoplay muted playsinline controls></video><p id="programOverlay" class="video-overlay">Подключение к эфиру…</p></div></section></div>
+<div class="layout-toolbar"><span>Раскладка:</span><div class="segments" id="presets"><button data-preset="1">1</button><button data-preset="4">2×2</button><button data-preset="9">3×3</button><button data-preset="16">4×4</button></div><span>Режим размещения:</span><div class="segments"><button id="gridMode">Сетка</button><button id="freeMode">Свободное размещение</button></div><button id="add">＋ Слой</button></div>
+<div class="lower-workspace"><section class="panel"><div class="panel-heading"><h2>Схема слоёв</h2><button id="resetGeometry" class="quiet">Вернуть в сетку</button></div><div id="stage" class="stage" aria-label="Редактор раскладки"></div><p id="stageHint" class="hint">Выберите камеру для настройки</p></section><section class="panel"><div class="panel-heading"><h2>Источники в раскладке</h2><span id="layerCount"></span></div><div id="layers" class="layers"></div></section></div>
+<details class="panel output-settings"><summary>Настройки канала и оформление</summary><div class="output-fields"><label>Качество<select id="quality"><option>360p</option><option>720p</option><option>1080p</option></select></label><label>FPS<select id="fps"><option>10</option><option>15</option><option>25</option></select></label><label>Битрейт, кбит/с<input id="bitrate" type="number" min="200" max="20000"></label><label>Заголовок<input id="titleInput" maxlength="160"></label><label class="check"><input id="clockInput" type="checkbox"> Часы сервера</label><label>Логотип<select id="logoInput"></select></label><label>Загрузить логотип<input id="logoFile" type="file" accept="image/png,image/jpeg"></label><button id="reset">Сбросить черновик</button></div></details>
+</section><aside class="inspector"><section class="panel"><div class="panel-heading"><h2>Выбранная камера</h2><span id="selectedNumber" class="badge"></span></div><label>Источник<input id="sourceSearch" type="search" placeholder="Найти камеру…"><select id="selectedSource" aria-label="Источник слоя"></select></label>
+<div class="inspector-section"><h3>Подпись</h3><label class="check"><input id="captionEnabled" type="checkbox"> Показывать подпись</label><input id="selectedCaption" aria-label="Текст подписи" maxlength="80" placeholder="Название источника"><label class="check"><input id="captionAuto" type="checkbox"> Использовать название источника</label><button id="restoreCaption" class="text-button">Вернуть название</button><label>Положение на экране<select id="selectedCaptionPosition"><option value="bottom-left">Снизу слева</option><option value="bottom-center">Снизу по центру</option><option value="bottom-right">Снизу справа</option><option value="top-left">Сверху слева</option><option value="top-center">Сверху по центру</option><option value="top-right">Сверху справа</option></select></label><label>Размер текста<select id="selectedCaptionSize"><option value="small">Мелкий</option><option value="medium">Средний</option><option value="large">Крупный</option></select></label><label class="check"><input id="selectedCaptionBackground" type="checkbox"> Фон подписи</label></div>
+<div class="inspector-section"><h3>Масштаб</h3><div class="segments stretch"><button id="fitContain">Вписать</button><button id="fitCover">Заполнить</button></div><button id="remove" class="danger">▱ Удалить слой</button></div></section>
+<section class="panel actions"><p id="message" role="status">Изменения автоматически обновляют предпросмотр</p><button id="take" class="primary">◉ В эфир</button><button id="save">▣ Сохранить черновик</button></section></aside></main><footer><span id="footerInfo">STREAMHUB 1.6.6</span><span id="footerState"></span></footer></div>
+<script src="/layouts.js"></script><script src="/studio-model.js"></script><script src="/studio.js"></script></body></html>

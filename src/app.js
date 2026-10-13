@@ -13,7 +13,7 @@ const $ = (s) => document.querySelector(s),
         })[c],
     );
 let model = { sources: [], channels: [], layouts: [] },
-  view = "wall",
+  view = new URLSearchParams(location.search).get("view") || "wall",
   size = 9,
   slots = [],
   fits = [],
@@ -1830,7 +1830,7 @@ function render() {
   } else {
     tb.innerHTML = '<div class="toolbar-title"><h2>Настройки</h2><span>Система, сеть и резервные копии</span></div><button id="logout">Выйти</button>';
     $("#main").innerHTML =
-      '<div class="content settings-layout"><div class="card system-card"><span class="eyebrow">Состояние системы</span><h2>STREAMHUB 1.6.5</h2><p>Режим: ' +
+      '<div class="content settings-layout"><div class="card system-card"><span class="eyebrow">Состояние системы</span><h2>STREAMHUB 1.6.6</h2><p>Режим: ' +
       (model.serviceMode ? "служба Windows" : "обычный запуск") +
       "<br>FFmpeg: " +
       (model.dependencies.ffmpeg ? "найден" : "не установлен") +

@@ -7,6 +7,7 @@ function validateScene(c,logoExists=()=>false){
  const rawStyles=Array.isArray(c.captionStyles)?c.captionStyles:[];
  const captionStyles=Array.from({length:n},(_,i)=>{const s=rawStyles[i]||{};return{position:allowedPositions.has(s.position)?s.position:'bottom-left',size:allowedSizes.has(s.size)?s.size:'medium',background:s.background!==false}});
  const g=c.graphics||{},graphics={title:typeof g.title==='string'?g.title.trim():'',clock:!!g.clock,logoId:g.logoId||null,x:Number(g.x??2),y:Number(g.y??2),width:Number(g.width??18),height:Number(g.height??18)};if(graphics.title.length>160)throw Error('Заголовок: не более 160 символов');if(graphics.logoId){if(!/^[a-f0-9-]{36}$/.test(graphics.logoId)||!logoExists(graphics.logoId))throw Error('Логотип не найден');if([graphics.x,graphics.y,graphics.width,graphics.height].some(v=>!Number.isFinite(v))||graphics.width<2||graphics.height<2||graphics.x<0||graphics.y<0||graphics.x+graphics.width>100.001||graphics.y+graphics.height>100.001)throw Error('Логотип должен находиться внутри кадра')}
- return{geometry,captions,captionStyles,graphics}
+ const captionAuto=Array.from({length:n},(_,i)=>typeof c.captionAuto?.[i]==='boolean'?c.captionAuto[i]:!captions[i]),captionEnabled=Array.from({length:n},(_,i)=>c.captionEnabled?.[i]!==false);
+ return{geometry,captions,captionStyles,graphics,captionAuto,captionEnabled,placementMode:c.placementMode==='free'?'free':'grid'}
 }
 module.exports={validateScene};
