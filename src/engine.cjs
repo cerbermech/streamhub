@@ -92,10 +92,13 @@ class Engine {
         if (blocked || r.destroyed) return;
         const delay=Math.max(4,Math.min(60,Number(u.searchParams.get("delay"))||5))*1000,
           reserve=this.sources.get(u.searchParams.get("backup")),
-          selected=s.state==="online"&&s.lagMs<=3000&&Date.now()-s.lastFrame<delay?s:reserve&&reserve.state==="online"&&reserve.lagMs<=3000&&Date.now()-reserve.lastFrame<4000?reserve:null,
+          selected=s.state==="online"&&!s.recoveryPending&&Date.now()-s.lastFrame<delay?s:reserve&&reserve.state==="online"&&!reserve.recoveryPending&&Date.now()-reserve.lastFrame<4000?reserve:null,
           fit=u.searchParams.get("fit") === "cover" ? "cover" : "frame";
         if (selected) lastVideoFrame=selected[fit];
-        else if (s.lagMs>3000) lastVideoFrame=s.blank;
+        // A brief drift spike is not a confirmed outage. For confirmed
+        // recovery, bridge the reconnect with a bounded last-frame hold.
+        else if (s.recoveryPending)
+          lastVideoFrame=s.lastFrame&&Date.now()<s.recoveryHoldUntil?s[fit]:s.blank;
         else if (!lastVideoFrame && s.lastFrame) lastVideoFrame=s[fit];
         blocked = !r.write(lastVideoFrame || s.blank);
       };
@@ -220,6 +223,8 @@ class Engine {
       s.lagMs = Math.round(clock.lagMs);
       if (expired) {
         recovering = true;
+        s.recoveryPending = true;
+        s.recoveryHoldUntil = Date.now() + 5000;
         s.state = "recovering";
         s.recoveries = (s.recoveries || 0) + 1;
         s.lastRecovery = `Накопилось отставание видео ${Math.round(s.lagMs / 1000)} с. Переподключение источника.`;
@@ -253,6 +258,8 @@ class Engine {
             buf.subarray(plane * 2 + quarter * 3),
           ]);
           s.lastFrame = lastDecodedAt = Date.now();
+          s.recoveryPending = false;
+          s.recoveryHoldUntil = 0;
           s.state = recovering ? "recovering" : "online";
           s.retryAttempt = 0;
           if (!recovering) s.error = "";

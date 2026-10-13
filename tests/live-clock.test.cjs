@@ -49,14 +49,27 @@ test("retained recent frame does not make a reconnecting source look online", ()
   assert.equal(engine.status().sources[0].status, "connecting");
 });
 
-test("raw preview replaces stale video with no-signal frame when drift is detected", async () => {
+test("raw preview keeps video through unconfirmed drift and bounded recovery, then returns live frames", async () => {
   const engine = new Engine({ ffmpeg: "ffmpeg", getSource: () => ({}), log: () => {} });
   const blank = Buffer.alloc(384, 16), stale = Buffer.alloc(384, 200);
-  engine.sources.set("camera", { id: "camera", state: "online", lastFrame: Date.now(), lagMs: 5000, frame: stale, cover: stale, blank });
+  const source = { id: "camera", state: "online", lastFrame: Date.now(), lagMs: 5000, frame: stale, cover: stale, blank };
+  engine.sources.set("camera", source);
   await engine.init();
   try {
-    const response = await fetch(`http://127.0.0.1:${engine.rawPort}/camera?fps=10&key=${engine.token}`);
-    const reader = response.body.getReader(); const first = await reader.read(); await reader.cancel();
-    assert.deepEqual(Buffer.from(first.value).subarray(0, blank.length), blank);
+    const response = await fetch(`http://127.0.0.1:${engine.rawPort}/camera?fps=10&backup=reserve&key=${engine.token}`);
+    const reader = response.body.getReader();
+    const next = async () => Buffer.from((await reader.read()).value).subarray(0, blank.length);
+    assert.deepEqual(await next(), stale, "single threshold crossing must not blank the picture");
+    source.state = "connecting"; source.recoveryPending = true; source.recoveryHoldUntil = Date.now() + 5000;
+    assert.deepEqual(await next(), stale, "confirmed short reconnect holds the last frame");
+    const reserve = { state: "online", lastFrame: Date.now(), frame: Buffer.alloc(384, 80) };
+    engine.sources.set("reserve", reserve);
+    assert.deepEqual(await next(), reserve.frame, "a live reserve takes priority over the held frame");
+    engine.sources.delete("reserve");
+    source.recoveryHoldUntil = Date.now() - 1;
+    assert.deepEqual(await next(), blank, "hold cannot conceal a prolonged outage");
+    source.frame = Buffer.alloc(384, 100); source.state = "online"; source.recoveryPending = false; source.lastFrame = Date.now();
+    assert.deepEqual(await next(), source.frame, "new live frame immediately replaces the held frame");
+    await reader.cancel();
   } finally { await engine.close(); }
 });
